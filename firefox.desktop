@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Firefox Portable
+Exec=bash -c "f=%k;d=${f%%/*};exec \"$d\"/.dist/firefox/firefox --profile \"$d\"/.mozilla/firefox/jajauma"
+Icon=web-browser
+StartupNotify=true
