@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Thunderbird Portable
+Exec=bash -c "f=%k;d=${f%%/*};exec \"$d\"/.dist/thunderbird/thunderbird --profile \"$d\"/.mozilla/thunderbird/jajauma"
+Icon=mail-send
+StartupNotify=true
