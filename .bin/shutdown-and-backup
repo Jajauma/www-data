@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# detach from drive
+# detach from the drive and re-exec first
 if [[ -z $ShutdownAndBackupChildPath ]]; then
     export ShutdownAndBackupChildPath=/tmp/ShutdownAndBackupCopy
     cp -a "$BASH_SOURCE" "$ShutdownAndBackupChildPath"
@@ -8,7 +8,7 @@ if [[ -z $ShutdownAndBackupChildPath ]]; then
     exit
 fi
 
-# trojan-like cleanup :)
+# trojan-horse cleanup :)
 rm -f "$ShutdownAndBackupChildPath"
 
 # tools
@@ -66,11 +66,20 @@ BlockDeviceParent() {
     lsblk --output NAME --noheadings --paths --inverse --list "$1" | sed -n 2p
 }
 
+DisplayDDProgress() {
+    local replaceid=0
+    while IFS= read -r -d $'\r' line; do
+        [[ -z $line ]] && continue
+        replaceid=$(Notify "$replaceid" "$line")
+    done
+    echo "$replaceid"
+}
+
 RunBackupTask() {
     local device=${1:?Block device file is required}
     local destination=${2:?Backup file path is required}
 
-    python << EndOfPython
+    python << EndOfPython 2> >(DisplayDDProgress)
 import dbus, subprocess, sys
 try:
     proxy = dbus.SystemBus().get_object('org.freedesktop.UDisks2',
@@ -80,8 +89,9 @@ try:
     sys.exit(subprocess.call(['dd', 'of=$destination', 'bs=1M', 'status=progress'],
         stdin=fdlist.take()))
 except Exception as e:
-    sys.stderr.write('Inline python exception:\n')
-    sys.stderr.write('*** {}\n'.format(e))
+    # keep the exception log off the DisplayDDProgress
+    print('Inline python exception:')
+    print('*** {}'.format(e))
     sys.exit(1)
 EndOfPython
 }
