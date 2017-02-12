@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+# detach from drive
+if [[ -z $ShutdownAndBackupChildPath ]]; then
+    export ShutdownAndBackupChildPath=/tmp/ShutdownAndBackupCopy
+    cp -a "$BASH_SOURCE" "$ShutdownAndBackupChildPath"
+    (setsid "$ShutdownAndBackupChildPath" "$@" &)
+    exit
+fi
+
+# trojan-like cleanup :)
+rm -f "$ShutdownAndBackupChildPath"
+
+# main script
+exec 1>/tmp/stdout-$$.log
+exec 2>/tmp/stderr-$$.log
+
+Fatal() {
+    echo "${FUNCNAME[0]}:" "${@:-Fatal.}" >&2
+    exit 1
+}
+
+MountpointDevice() {
+    if [[ -f $1 ]] || [[ -d $1 ]]; then
+        local mountpoint=$1
+    else
+        echo "${FUNCNAME[0]}: directory or file path is required" >&2
+        return 1
+    fi
+    # strip df header line
+    df --output=source "$mountpoint" | sed 1d
+}
+
+BlockDeviceParent() {
+    if [[ -b $1 ]]; then
+        local blockdev=$1
+    else
+        echo "${FUNCNAME[0]}: block device argument is required" >&2
+        return 1
+    fi
+    lsblk --output NAME --noheadings --paths --inverse --list "$blockdev" | sed -n 2p
+}
+
+[[ -d $1 ]] && vol_root=$1 || Fatal 'Volume root argument is required'
+
+luks_container=$(MountpointDevice "$vol_root")
+[[ -b $luks_container ]] || Fatal "'$luks_container' is not a block device"
+luks_drive=$(BlockDeviceParent "$luks_container")
+[[ -b $luks_drive ]] || Fatal "'$luks_drive' is not a block device"
+
+echo "CHILD LUKS CONTAINER: $luks_container"
+echo "CHILD LUKS DRIVE: $luks_drive"
+
+udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
+udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
+
+notify-send "Shutdown & Backup" "Backup complete!"
