@@ -11,7 +11,7 @@ fi
 # trojan-like cleanup :)
 rm -f "$ShutdownAndBackupChildPath"
 
-# main script
+# tools
 exec 1>/tmp/stdout-$$.log
 exec 2>/tmp/stderr-$$.log
 
@@ -47,6 +47,7 @@ Notify() {
 
 Fatal() {
     echo "${FUNCNAME[0]}:" "${@:-Fatal.}" >&2
+    Notify 0 "Backup Failure" "Backup has filed. See the logs for the details." >/dev/null
     exit 1
 }
 
@@ -62,20 +63,15 @@ MountpointDevice() {
 }
 
 BlockDeviceParent() {
-    if [[ -b $1 ]]; then
-        local blockdev=$1
-    else
-        echo "${FUNCNAME[0]}: block device argument is required" >&2
-        return 1
-    fi
-    lsblk --output NAME --noheadings --paths --inverse --list "$blockdev" | sed -n 2p
+    lsblk --output NAME --noheadings --paths --inverse --list "$1" | sed -n 2p
 }
 
-[[ -d $1 ]] && vol_root=$1 || Fatal 'Volume root argument is required'
-
-luks_container=$(MountpointDevice "$vol_root")
+# main script
+luks_root=${1:?LUKS root directory is required}
+luks_container=$(MountpointDevice "$luks_root") || Fatal "Unable to determine LUKS container device"
 [[ -b $luks_container ]] || Fatal "'$luks_container' is not a block device"
-luks_drive=$(BlockDeviceParent "$luks_container")
+
+luks_drive=$(BlockDeviceParent "$luks_container") || Fatal "Unable to determine LUKS drive"
 [[ -b $luks_drive ]] || Fatal "'$luks_drive' is not a block device"
 
 echo "CHILD LUKS CONTAINER: $luks_container"
@@ -84,4 +80,4 @@ echo "CHILD LUKS DRIVE: $luks_drive"
 udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
 udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
 
-notify-send "Shutdown & Backup" "Backup complete!"
+Notify "Backup complete! :)"
