@@ -15,6 +15,36 @@ rm -f "$ShutdownAndBackupChildPath"
 exec 1>/tmp/stdout-$$.log
 exec 2>/tmp/stderr-$$.log
 
+Notify() {
+    if [[ $# -eq 1 ]]; then
+        local body=$1
+    elif [[ $# -eq 2 ]]; then
+        local replaceid=$1
+        local body=$2
+    elif [[ $# -ge 3 ]]; then
+        local replaceid=$1
+        local summary=$2
+        local body=${@:3}
+    else
+        echo "${FUNCNAME[0]}: not enough arguments" >&2
+        return 1
+    fi
+
+    local replaceid=${replaceid:=0}
+    local summary=${summary:="Backup Status"}
+    local gdbusre='\(uint32[[:space:]]+([[:digit:]]+),\)'
+
+    [[ $(gdbus call --session --dest org.freedesktop.Notifications \
+        --object-path /org/freedesktop/Notifications \
+        --method org.freedesktop.Notifications.Notify \
+        "$BASH_SOURCE" \
+        "$replaceid" \
+        media-flash \
+        "$summary" \
+        "$body" [] {} 0) =~ $gdbusre ]] && replaceid=${BASH_REMATCH[1]} || return 1
+    echo "$replaceid"
+}
+
 Fatal() {
     echo "${FUNCNAME[0]}:" "${@:-Fatal.}" >&2
     exit 1
