@@ -66,6 +66,26 @@ BlockDeviceParent() {
     lsblk --output NAME --noheadings --paths --inverse --list "$1" | sed -n 2p
 }
 
+RunBackupTask() {
+    local device=${1:?Block device file is required}
+    local destination=${2:?Backup file path is required}
+
+    python << EndOfPython
+import dbus, subprocess, sys
+try:
+    proxy = dbus.SystemBus().get_object('org.freedesktop.UDisks2',
+        '/org/freedesktop/UDisks2/block_devices/${device##*/}')
+    block_device = dbus.Interface(proxy, dbus_interface='org.freedesktop.UDisks2.Block')
+    fdlist = block_device.OpenForBackup({})
+    sys.exit(subprocess.call(['dd', 'of=$destination', 'bs=1M', 'status=progress'],
+        stdin=fdlist.take()))
+except Exception as e:
+    sys.stderr.write('Inline python exception:\n')
+    sys.stderr.write('*** {}\n'.format(e))
+    sys.exit(1)
+EndOfPython
+}
+
 # main script
 luks_root=${1:?LUKS root directory is required}
 luks_container=$(MountpointDevice "$luks_root") || Fatal "Unable to determine LUKS container device"
