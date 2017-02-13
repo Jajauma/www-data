@@ -72,6 +72,14 @@ Fatal() {
     exit 1
 }
 
+CheckTools() {
+    while [[ $1 ]]; do
+        local tool=$1
+        hash "$tool" 2>/dev/null || Fatal "$tool is required, but can not be found"
+        shift
+    done
+}
+
 MountpointDevice() {
     if [[ -f $1 ]] || [[ -d $1 ]]; then
         local mountpoint=$1
@@ -140,6 +148,8 @@ GenerateBackupFileName() {
 }
 
 # main script
+CheckTools gdbus df lsblk python dd date zenity udisksctl
+
 luks_root=${1:?LUKS root directory is required}
 luks_container=$(MountpointDevice "$luks_root") || Fatal "Unable to determine LUKS container device"
 [[ -b $luks_container ]] || Fatal "'$luks_container' is not a block device"
