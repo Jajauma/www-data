@@ -47,7 +47,7 @@ Notify() {
 
 Fatal() {
     echo "${FUNCNAME[0]}:" "${@:-Fatal.}" >&2
-    Notify 0 "Backup Failure" "Backup has filed. See the logs for the details." >/dev/null
+    Notify 0 "Backup Failure" "Backup has failed. See the logs for the details." >/dev/null
     exit 1
 }
 
@@ -79,6 +79,8 @@ RunBackupTask() {
     local device=${1:?Block device file is required}
     local destination=${2:?Backup file path is required}
 
+    # really crazy, don't reindent/reformat this
+    local replaceid=$(
     python << EndOfPython 2> >(DisplayDDProgress)
 import dbus, subprocess, sys
 try:
@@ -94,6 +96,11 @@ except Exception as e:
     print('*** {}'.format(e))
     sys.exit(1)
 EndOfPython
+    )
+
+    local pythonret=$?
+    [[ $pythonret -eq 0 ]] && Notify "$replaceid" "★ Completed successfully! ★" >/dev/null
+    return $pythonret
 }
 
 # main script
@@ -110,4 +117,4 @@ echo "CHILD LUKS DRIVE: $luks_drive"
 udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
 udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
 
-Notify "Backup complete! :)"
+RunBackupTask "$luks_drive" /var/tmp/www-data.img || Fatal
