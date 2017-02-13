@@ -67,7 +67,7 @@ Notify() {
 }
 
 Fatal() {
-    echo "${FUNCNAME[0]}:" "${@:-Fatal.}" >&2
+    echo "${FUNCNAME[0]}:" "${@:-Stop.}" >&2
     Notify 0 "Backup Failure" "Backup has failed. See the logs for the details." >/dev/null
     exit 1
 }
@@ -120,14 +120,30 @@ EndOfPython
     )
 
     local pythonret=$?
-    [[ $pythonret -eq 0 ]] && Notify "$replaceid" "★ Completed successfully! ★" >/dev/null
+    [[ $pythonret -eq 0 ]] && Notify "$replaceid" \
+        "★ Completed successfully! ★\n\nYour file is $destination" >/dev/null
     return $pythonret
+}
+
+GenerateBackupFileName() {
+    local device=${1:?Block device file is required}
+    local label uuid
+    label=$(lsblk --noheadings -o label "$device") || Fatal
+    uuid=$(lsblk --noheadings -o uuid "$device") || Fatal
+    local date=$(date +%F.%H-%M)
+
+    # sanitize the label
+    label=${label//[^a-zA-Zа-яА-Я0-9]/_}
+    label=${label:=<Unknown>}
+
+    echo "/var/tmp/SAB.$uuid.$label.$date.img"
 }
 
 # main script
 luks_root=${1:?LUKS root directory is required}
 luks_container=$(MountpointDevice "$luks_root") || Fatal "Unable to determine LUKS container device"
 [[ -b $luks_container ]] || Fatal "'$luks_container' is not a block device"
+backup_filename=$(GenerateBackupFileName "$luks_container")
 
 luks_drive=$(BlockDeviceParent "$luks_container") || Fatal "Unable to determine LUKS drive"
 [[ -b $luks_drive ]] || Fatal "'$luks_drive' is not a block device"
@@ -137,7 +153,7 @@ echo "CHILD LUKS DRIVE: $luks_drive"
 
 udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
 udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
-RunBackupTask "$luks_drive" /var/tmp/www-data.img || Fatal
+RunBackupTask "$luks_drive" "$backup_filename" || Fatal
 
 # successful completion, keep the logs otherwise
 rm -f /tmp/std*-ShutdownAndBackup.log
