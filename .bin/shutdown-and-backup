@@ -8,13 +8,13 @@ if [[ -z $ShutdownAndBackupChildPath ]]; then
     exit
 fi
 
+exec 1>/tmp/stdout-ShutdownAndBackup.log
+exec 2>/tmp/stderr-ShutdownAndBackup.log
+
 # trojan-horse cleanup :)
 rm -f "$ShutdownAndBackupChildPath"
 
 # tools
-exec 1>/tmp/stdout-$$.log
-exec 2>/tmp/stderr-$$.log
-
 Notify() {
     if [[ $# -eq 1 ]]; then
         local body=$1
@@ -116,5 +116,7 @@ echo "CHILD LUKS DRIVE: $luks_drive"
 
 udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
 udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
-
 RunBackupTask "$luks_drive" /var/tmp/www-data.img || Fatal
+
+# successful completion, keep the logs otherwise
+rm -f /tmp/std*-ShutdownAndBackup.log
