@@ -23,5 +23,5 @@
 [Desktop Entry]
 Type=Application
 Name=Shutdown & Backup
-Exec=bash -c "f=%k;d=${f%%/*};exec \"$d\"/.bin/shutdown-and-backup \"$d\""
+Exec=bash -c "f=%k;d=${f%%/*};exec \"$d\"/.bin/ShutdownAndBackup \"$d\""
 Icon=media-flash
