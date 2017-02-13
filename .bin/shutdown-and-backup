@@ -148,9 +148,6 @@ backup_filename=$(GenerateBackupFileName "$luks_container")
 luks_drive=$(BlockDeviceParent "$luks_container") || Fatal "Unable to determine LUKS drive"
 [[ -b $luks_drive ]] || Fatal "'$luks_drive' is not a block device"
 
-echo "CHILD LUKS CONTAINER: $luks_container"
-echo "CHILD LUKS DRIVE: $luks_drive"
-
 udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
 udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
 RunBackupTask "$luks_drive" "$backup_filename" || Fatal
