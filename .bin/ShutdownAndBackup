@@ -148,9 +148,16 @@ backup_filename=$(GenerateBackupFileName "$luks_container")
 luks_drive=$(BlockDeviceParent "$luks_container") || Fatal "Unable to determine LUKS drive"
 [[ -b $luks_drive ]] || Fatal "'$luks_drive' is not a block device"
 
-udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
-udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
-RunBackupTask "$luks_drive" "$backup_filename" || Fatal
+if zenity --question \
+    --title='Shutdown & Backup' \
+    --text='This will unmount and lock the LUKS drive and take a full disk image. Continue?' \
+    --ok-label='Okay...' \
+    --cancel-label='No!'
+then
+    udisksctl unmount --block-device "$luks_container" || Fatal "Unable to unmount LUKS container"
+    udisksctl lock --block-device "$luks_drive" || Fatal "Unable to lock LUKS drive"
+    RunBackupTask "$luks_drive" "$backup_filename" || Fatal
+fi
 
 # successful completion, keep the logs otherwise
 rm -f /tmp/std*-ShutdownAndBackup.log
